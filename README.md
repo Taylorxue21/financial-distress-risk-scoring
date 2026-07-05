@@ -36,7 +36,7 @@ DB_PASSWORD=your_password
 DB_NAME=postgres
 ```
 
-###2. Installation
+### 2. Installation
 Clone the repository and install the required dependencies:
 
 Bash
@@ -45,7 +45,7 @@ cd us-public-company-financial-risk-scoring
 pip install -r requirements.txt
 
 
-###3. Run the Dashboard
+### 3. Run the Dashboard
 Launch the interactive Streamlit application:
 
 Bash
