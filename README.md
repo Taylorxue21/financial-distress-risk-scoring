@@ -40,7 +40,7 @@ DB_NAME=postgres
 Clone the repository and install the required dependencies:
 
 Bash
-git clone https://github.com/yourusername/us-public-company-financial-risk-scoring.git
+git clone https://github.com/Taylorxue21/SP500-Equities-Financial-Risk-Scorer.git
 cd us-public-company-financial-risk-scoring
 pip install -r requirements.txt
 
