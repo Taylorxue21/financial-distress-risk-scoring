@@ -3,7 +3,7 @@
   English | <a href="README_kr.md">한국어</a> | <a href="README_zh.md">简体中文</a>
 </div>
 
-# 📈 US Equities Financial Risk Scorer (US-Risk-Scorer)
+# 📈 US Equities Financial Risk Scorer
 
 <p align="left">
   <a href="https://www.python.org/"><img src="https://img.shields.io/badge/Python-3.10+-blue.svg" alt="Python"></a>
