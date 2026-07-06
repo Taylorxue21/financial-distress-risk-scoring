@@ -197,8 +197,7 @@ us-public-company-financial-risk-scoring/
 │   ├── fetch_sec_ultimate.py
 │   ├── fetch_sp500_sectors.py
 │   ├── fetch_spy.py
-│   └── train.py
-├── .env                                        
+│   └── train.py                                      
 ├── .env.example                              
 ├── dataset.csv                             
 ├── requirements.txt                           
