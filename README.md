@@ -3,7 +3,7 @@
   English | <a href="README_kr.md">한국어</a> | <a href="README_zh.md">简体中文</a>
 </div>
 
-# 📈 S&P 500 Financial Risk Scorer
+# 📈 S&P 500 Equities Financial Risk Scorer
 
 <p align="left">
   <a href="https://www.python.org/"><img src="https://img.shields.io/badge/Python-3.10+-blue.svg" alt="Python"></a>
