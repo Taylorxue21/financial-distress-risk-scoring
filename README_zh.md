@@ -5,11 +5,6 @@
 
 # 📈 S&P500股票金融风险评分系统
 
-<div align="right">
-  🌐 <b>语言:</b>
-  <a href="README.md">English</a> | 한국어 | 简体中文
-</div>
-
 <p align="left">
   <a href="https://www.python.org/"><img src="https://img.shields.io/badge/Python-3.10+-blue.svg" alt="Python"></a>
   <a href="https://xgboost.readthedocs.io/"><img src="https://img.shields.io/badge/Model-XGBoost-orange.svg" alt="XGBoost"></a>
@@ -18,8 +13,9 @@
   <a href="https://opensource.org/licenses/MIT"><img src="https://img.shields.io/badge/License-MIT-green.svg" alt="License"></a>
 </p>
 
-> 一个端到端的数据分析项目：从财务报表与市场数据出发，识别未来 12 个月可能大幅跑输大盘的美股上市公司，并通过交互式看板将结果转化为可执行的业务洞察。
+> 这是一个基于 XGBoost 的可解释金融风险分析系统，面向美国上市公司。系统将多维市场数据、基本面财务报表以及宏观经济指标整合在一起，并以买方（Buy-side）级别的标准构建 Streamlit 交互式分析仪表盘。
 
+> **目标**： 预测某家公司在未来 12 个月内是否会显著跑输标普 500 (`Alpha < -30%`)，并通过 SHAP 局部归因解释其原因
 
 ## 1. 业务背景与问题定义
 
@@ -28,16 +24,14 @@
 
 **目标变量定义：**
 
-```
-risk_label = 1  如果  未来12个月相对收益(相对SPY) <= -30%
-risk_label = 0  否则
-```
+(`risk_label = 1`)  如果  未来12个月相对收益(相对SPY) <= -30% 否则 (`risk_label = 0`)  
 
-这不是一个“炫技型”机器学习项目，而是一次**面向业务决策的数据分析实践**：核心价值不在模型本身，而在于——
 
-- 如何把原始财务数据转化为**可解释、可比较**的分析指标（同比增长率、行业相对分位数、杠杆/现金结构等）；
-- 如何用**统计与可视化方法**验证特征是否真的和风险相关，而不是拍脑袋建模；
-- 如何把模型输出**翻译成业务语言**（风险分数、行业对比、驱动因子），让非技术背景的人也能看懂并使用。
+本学习项目是一次**面向业务决策的数据分析实践**：核心价值不在模型本身，而在于：
+
+- 如何把原始财务数据转化为**可解释、可比较**的分析指标（同比增长率、行业相对分位数、杠杆/现金结构等);
+- 如何用**统计与可视化方法**验证特征是否真的和风险相关;
+- 如何把模型输出**翻译成业务语言**（风险分数、行业对比、驱动因子）
 
 ---
 
@@ -46,7 +40,7 @@ risk_label = 0  否则
 ```
 数据采集层        →  财务报表 / 历史行情 / 宏观指标（FMP API + FRED API）
    ↓
-数据清洗与建模层  →  PostgreSQL 存储 + SQL 特征工程（避免未来函数 / 严格按报告日对齐）
+数据清洗与建模层   →  PostgreSQL 存储 + SQL 特征工程（避免未来函数 / 严格按报告日对齐）
    ↓
 探索性分析层      →  行业分布箱线图 / 时间序列标签率 / 相关性与分位数分析
    ↓
@@ -65,7 +59,7 @@ risk_label = 0  否则
 |---|---|
 | 覆盖范围 | 美股上市公司（优先 S&P 500 子集，100–200 只流动性较好的标的） |
 | 观测频率 | 季度财务报表 + 日度行情聚合 |
-| 时间跨度 | 2015–2024 |
+| 时间跨度 | 2015–2025 |
 | 基准指数 | SPY（标普 500 ETF） |
 | 数据来源 | Financial Modeling Prep（财务与行情）、FRED（宏观经济指标） |
 
@@ -78,35 +72,34 @@ risk_label = 0  否则
 - **宏观环境**：联邦基金利率、通胀率、失业率、10Y-2Y 利差
 - **行业相对化特征**：同行业内的杠杆分位数、ROE 分位数等（消除行业本身的系统性差异）
 
-> ⚠️ 数据处理的核心原则：**严格防止未来函数（look-ahead bias）**——所有特征只使用 `as_of_date` 当天及之前可获得的信息，财报数据按保守滞后对齐。这是金融类分析项目中最容易被面试官追问、也最容易暴露基本功的细节。
-
+> **防止未来函数（look-ahead bias）**——所有特征只使用 `as_of_date` 当天及之前可获得的信息，财报数据按保守滞后对齐
 ---
 
 ## 4. 建模与评估
 
 采用**时间序列切分**而非随机切分，更贴近真实业务场景（用历史预测未来，而非"用未来数据泄漏式验证"）：
 
-```
 训练集：2015–2020
 验证集：2021–2022
-测试集：2023–2024
-```
+测试集：2023–2025
+
 
 | 模型 | 用途 |
 |---|---|
 | Logistic Regression | 基线模型，验证特征本身的线性可分性，便于业务解释系数方向 |
 | XGBoost（`scale_pos_weight` 处理类别不平衡） | 主模型，捕捉非线性交互（如"高杠杆 × 高波动"的组合风险） |
 
-**评估指标（金融风控场景更看重排序能力而非单点准确率）：**
+### 尾部风险决策阈值优化
 
-- PR-AUC（正样本稀少，比 ROC-AUC 更有参考价值）
-- Top 10% / Top 20% 高风险分桶精确率 —— **业务解读：在模型判定为最高风险的前 10% 公司中，有多少比例真的在未来 12 个月内跑输大盘超过 30%？**
-- Recall / Precision / F1 / 混淆矩阵
+传统分类器通常默认使用 `0.5` 的概率阈值，但在尾部风险管理中这一设定在商业层面是不可接受的。如我们在下方的 **Precision-Recall 曲线** 所示，该资产的下行风险呈现显著的非线性特征。通过在验证集上最大化 F1-Score，系统最终识别出最优风险触发阈值为 **`0.0839`**。
 
-> 📊 *实际结果（请在完成一次完整跑批后填入真实数值，不要用占位数字投简历）：*
-> - PR-AUC：`__`
-> - Top 10% 分桶精确率：`__`
-> - XGBoost 相对逻辑回归基线提升：`__`
+| Precision-Recall 曲线 (AUC = 0.959) | 优化后的“风洞实验”混淆矩阵 |
+| :---: | :---: |
+| <img src="docs/images/pr_curve.png" width="500" /> | <img src="docs/images/confusion_matrix_optimal.png" width="500" /> |
+
+* **下行保护能力（Recall = 97.03%）**：在 `0.0839` 的系统级阈值下，模型在盲测数据集中成功捕获并拦截了 97% 的绝对回撤样本（Alpha ≤ -30%）。
+
+* **信号可靠性（Precision = 85.45%）**：在保持激进风险防御策略的同时，信号仍维持 85.4% 的准确率，从而显著降低误报，并有效控制投资组合的机会成本
 
 ---
 
@@ -119,11 +112,16 @@ risk_label = 0  否则
 
 这一层是整个项目**从"模型"走向"决策工具"**的关键——风控或投资人员不需要理解 XGBoost 原理，只需要看懂"这家公司为什么被标记为高风险"。
 
----
+<p align="center">
+  <img src="docs/images/shap_waterfall.png" width="85%" alt="SHAP Local Waterfall Explanation">
+  <br>
+  <i style="color: gray; font-size: 14px;">图：SHAP 个股风险归因，拆解各项财务与宏观指标对最终风险得分的具体贡献</i>
+</p>
+
 
 ## 6. 交互式分析看板（Streamlit Dashboard）
 
-看板围绕"**宏观 → 中观（行业）→ 微观（个股）**"的分析逻辑设计，这也是数据分析师日常向业务方汇报时最常用的叙事结构：
+看板围绕"**宏观 → 中观（行业）→ 微观（个股）**"的分析逻辑设计：
 
 1. **Top 10 高风险公司观察榜**：全市场风险分数（0–100 相对分位）排序 + 主要风险驱动标签
 2. **行业风险分布（箱线图）**：观察不同 GICS 行业在杠杆、现金、波动率上的"天然边界"（例如公用事业行业的杠杆中枢天然更高）
@@ -136,7 +134,13 @@ risk_label = 0  否则
 - `Plotly` 实现交互式箱线图 / 平行坐标图 / 雷达图，`Matplotlib` 承载 SHAP 静态图
 - 缓存策略：`st.cache_data` / `st.cache_resource` 分离数据加载与模型训练，避免每次交互重复计算
 
----
+<p align="center">
+  <img src="docs/images/radar_chart.png" width="45%" alt="Company vs Sector Radar Chart">
+  <img src="docs/images/parallel_coordinates.png" width="45%" alt="Multi-dimensional Risk Parallel Coordinates">
+  <br>
+  <i style="color: gray; font-size: 14px;">图：个股 vs 行业同行对比（左）与 多维风险全景图（右）</i>
+</p>
+
 
 ## 7. 技术栈
 
@@ -153,47 +157,55 @@ risk_label = 0  否则
 ---
 
 ## 8. 项目结构
-
-```
+```text
 us-public-company-financial-risk-scoring/
-├── config/
-│   ├── tickers_sp500.csv
-│   └── fred_series.csv
-├── sql/
-│   ├── 01_create_tables.sql
+├── .vscode/
+│   └── settings.json
+├── app/
+│   └── streamlit_sector_peer_app.py          
+├── data/
+│   ├── processed/                             # 特征存储（模型可直接使用的数据集）
+│   │   ├── model_dataset.parquet
+│   │   └── test_scored.parquet
+│   └── raw/                                    
+│       ├── fmp_income_statements.csv
+│       └── yfinance_income_statements.csv
+├── models/                                    
+│   ├── model_features.pkl
+│   ├── xgb_risk_model.json
+│   └── xgboost_risk_model.pkl
+├── notebooks/                                  
+│   ├── 01_data_quality_check.ipynb
+│   ├── 02_export_dataset.ipynb
+│   └── 03_modeling_xgboost.ipynb               # 训练完成的 XGBoost 模型（生产环境导出）
+├── reports/                                    
+│   ├── feature_importance.png
+│   ├── risk_leaderboard.csv
+│   ├── risk_report.py
+│   └── top_features.csv
+├── sql/                                        # 数据库特征工程脚本
 │   ├── 03_build_financial_features.sql
-│   ├── 04_build_market_features.sql
-│   ├── 05_build_macro_features.sql
+│   ├── 04_build_risk_labels.sql
 │   └── 06_build_model_dataset.sql
-├── src/
-│   ├── fetch_fmp.py
-│   ├── fetch_fred.py
-│   ├── clean_financials.py
-│   ├── clean_prices.py
+├── src/                                       
+│   ├── build_dataset.py
 │   ├── build_features.py
 │   ├── build_labels.py
-│   ├── train.py
-│   ├── evaluate.py
-│   └── explain.py
-├── notebooks/
-│   ├── 01_data_quality_check.ipynb
-│   ├── 03_modeling_baseline.ipynb
-│   └── 04_lightgbm_shap.ipynb
-├── app/
-│   └── streamlit_app.py
-├── reports/
-│   ├── business_memo_en.md
-│   ├── business_memo_kr.md
-│   └── model_card.md
-├── data/
-│   ├── raw/
-│   └── processed/
-├── .env.example
-├── requirements.txt
-└── README.md
+│   ├── explain.py
+│   ├── fetch_macro.py
+│   ├── fetch_prices.py
+│   ├── fetch_sec_ultimate.py
+│   ├── fetch_sp500_sectors.py
+│   ├── fetch_spy.py
+│   └── train.py
+├── .env                                        
+├── .env.example                              
+├── dataset.csv                             
+├── requirements.txt                           
+├── README.md                                   
+├── README_zh.md                                
+└── README_kr.md                               
 ```
-
----
 
 ## 9. 如何运行
 
@@ -203,43 +215,52 @@ git clone <repo-url>
 cd us-public-company-financial-risk-scoring
 pip install -r requirements.txt
 
-# 2. 配置环境变量（API Key、数据库连接）
+# 2. 配置环境变量（API Key、本地路径等）
 cp .env.example .env
+# 注：请在本地编辑 .env 文件，配置你的 API 密钥
 
-# 3. 数据采集
-python src/fetch_fmp.py
-python src/fetch_fred.py
+# 3. 运行端到端数据采集管道 (API)
+python src/fetch_sp500_sectors.py
+python src/fetch_sec_ultimate.py
+python src/fetch_prices.py
+python src/fetch_macro.py
 
-# 4. 建表与特征构建
-psql -f sql/01_create_tables.sql
+# 4. 构建特征与标签矩阵 (本地落地或 PostgreSQL 下沉)
+# 如果使用 SQL 构建，请按顺序在数据库执行 sql/ 目录下的脚本
 python src/build_features.py
 python src/build_labels.py
+python src/build_dataset.py
 
-# 5. 训练与评估
+# 5. 模型训练、评估与 SHAP 归因导出
 python src/train.py
-python src/evaluate.py
+python src/explain.py
 
-# 6. 启动看板
-streamlit run app/streamlit_app.py
+# 6. 启动 Streamlit 交互式看板
+streamlit run app/streamlit_sector_peer_app.py
 ```
-
 ---
 
 ## 10. 局限性与未来规划
 
-**当前局限（诚实呈现，面试时主动说出来反而加分）：**
+**当前局限：**
 - 样本量集中在流动性较好的大盘股，对小盘股 / 次新股的泛化能力未验证
 - 财务数据存在报告滞后与口径调整风险，跨公司比较未做行业会计准则差异修正
 - 未纳入文本类信息（如财报电话会情绪、新闻舆情），风险信号目前仅来自结构化数据
+---
 
-**下一步计划：**
-- [ ] 补充 LightGBM 与 XGBoost 的对比实验，量化两者在 PR-AUC / 推理速度上的差异
-- [ ] 引入行业中性化（sector-neutral）标签定义，剔除行业 Beta 对风险标签的干扰
-- [ ] 接入财报文本 / 新闻情绪特征，验证是否提升 Top 10% 分桶精确率
-- [ ] 增加模型稳定性监控（PSI / 特征漂移检测），为看板加入"模型健康度"模块
+## ⚠️ 免责声明
+
+本项目仅用于教育和研究目的。
+
+系统生成的风险评分、特征归因（SHAP）以及所有分析结果，仅用于展示数据驱动的金融建模方法，不构成任何投资建议、交易建议或金融建议。
+
+金融市场具有高度不确定性，基于历史数据构建的模型存在固有局限性，无法保证对未来市场表现的准确预测。
+
+使用者不应依赖本系统进行任何实际投资决策，并应在进行金融相关决策前咨询专业金融顾问。
 
 ---
 
-## 12. 免责声明
+## 👨‍💻 作者
 
-本项目仅用于学习与作品集展示，不构成任何投资建议。模型基于历史数据训练，不保证未来表现，请勿用于实际投资决策。
+**薛焱文**  
+高丽大学 统计系
