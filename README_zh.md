@@ -110,7 +110,7 @@
 - **全局层面**：SHAP summary plot / bar plot，识别对整体风险预测贡献最大的特征（例如高杠杆、低现金缓冲、高波动率的组合信号）
 - **个股层面**：针对看板中选中的任意公司，生成 SHAP waterfall 图，逐项展示哪些财务/市场特征把这家公司推向了"高风险"或"低风险"
 
-这一层是整个项目**从"模型"走向"决策工具"**的关键——风控或投资人员不需要理解 XGBoost 原理，只需要看懂"这家公司为什么被标记为高风险"。
+这一层是整个项目从模型走向决策工具的关键——风控或投资人员不需要理解 XGBoost 原理，只需要看懂"这家公司为什么被标记为高风险"。
 
 <p align="center">
   <img src="docs/images/shap_waterfall.png" width="85%" alt="SHAP Local Waterfall Explanation">
